@@ -64,17 +64,22 @@ class BoardInputReader:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
+    if len(sys.argv) < 2:
         raise Exception("Usage: ./run.py input.txt out.txt")
+    if len(sys.argv) != 3:
+        output_filename = "moves.txt"
+    else:
+        output_filename = sys.argv[2]
+    input_filename = sys.argv[1]
 
     input_reader = BoardInputReader()
-    board = input_reader(sys.argv[1])
+    board = input_reader(input_filename)
 
     solver = BoardSolver(board)
 
     path = solver.solve()
 
-    with open(sys.argv[2], "w") as writer:
+    with open(output_filename, "w") as writer:
         for node in path:
             action = node.action
             if action is None:
