@@ -1,3 +1,5 @@
+#! /usr/bin/python3
+
 import sys
 from typing import List
 from models import Board
@@ -91,6 +93,7 @@ if __name__ == "__main__":
     path = solver.solve()
 
     with open(output_filename, "w") as writer:
+        print("writing")
         for node in path:
             action = node.action
             if action is None:

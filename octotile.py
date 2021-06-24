@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from models import Board, BoardNode
 import heapq
@@ -16,13 +16,17 @@ class BoardSolver:
 
     def astar_search(self, initial_node: BoardNode) -> Optional[BoardNode]:
         heap: List[BoardNode] = []
-        seen = set()
+
+        # best path maps a BoardNode
+        # to the lowest possible cost known to get to that node
+        # from initial_node
+        best_cost: Dict[BoardNode, int] = {}
 
         current_max_depth = 0
 
         for neighbour in initial_node.neighbours:
             heapq.heappush(heap, neighbour)
-            seen.add(neighbour)
+            best_cost[neighbour] = neighbour.cost
 
         while heap:
             node = heapq.heappop(heap)
@@ -36,7 +40,10 @@ class BoardSolver:
                 return node
 
             for neighbour in node.neighbours:
-                if neighbour not in seen:
+                if (
+                    best_cost.get(neighbour) is None
+                    or neighbour.cost < best_cost[neighbour]
+                ):
+                    best_cost[neighbour] = neighbour.cost
                     heapq.heappush(heap, neighbour)
-                    seen.add(neighbour)
         return None
