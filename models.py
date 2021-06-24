@@ -12,6 +12,9 @@ class Board:
         self.tiles: List[List[Tile]] = []
         self.blank = None
 
+        self.height = len(tiles)
+        self.width = len(tiles[0])
+
         for i, row in enumerate(tiles):
             self.tiles.append([])
             for j, tile in enumerate(row):
@@ -28,17 +31,16 @@ class Board:
                 total_distance += self.manhattan_distance_at(tile, i, j)
         return total_distance
 
-    @staticmethod
-    def manhattan_distance_at(value: Tile, i: int, j: int) -> int:
+    def manhattan_distance_at(self, value: Tile, i: int, j: int) -> int:
         """
         Returns the manhattan distance of a cell at coordinates (i, j)
         given the value it holds.
         """
         if value == "_":
-            goal_i, goal_j = 2, 2
+            goal_i, goal_j = self.height - 1, self.width - 1
         else:
-            goal_i = (value - 1) // 3
-            goal_j = (value - 1) % 3
+            goal_i = (value - 1) // self.width
+            goal_j = (value - 1) % self.width
 
         return abs(goal_i - i) + abs(goal_j - j)
 
@@ -58,9 +60,9 @@ class Board:
         for move in possible_moves:
             delta_i, delta_j = move
 
-            if not (0 <= blank_i + delta_i < 3):
+            if not (0 <= blank_i + delta_i < self.height):
                 continue
-            if not (0 <= blank_j + delta_j < 3):
+            if not (0 <= blank_j + delta_j < self.width):
                 continue
 
             allowed_actions.append((delta_i, delta_j))

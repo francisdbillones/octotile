@@ -29,8 +29,15 @@ class BoardInputReader:
 
     @staticmethod
     def _validate(lines: List[str]):
+        if not lines:
+            raise ValueError("File empty")
         seen = set()
         has_blank = False
+
+        height = len(lines)
+        width = len(lines[0].split(","))
+
+        expected_nums = set(range(1, height * width))
 
         for i, line in enumerate(lines):
             tiles = [tile.strip() for tile in line.split(",")]
@@ -41,11 +48,15 @@ class BoardInputReader:
                             "Too many blank tiles in input. Only one is allowed."
                         )
                     has_blank = True
+                    continue
                 elif not tile.isnumeric():
                     raise ValueError("Non-blank tiles must be integers.")
                 elif tile in seen:
                     raise ValueError("Duplicate tiles")
-                seen.add(tile)
+                seen.add(int(tile))
+
+        if seen != expected_nums:
+            raise ValueError("Incomplete/invalid tile values")
 
     @staticmethod
     def _to_board(lines: List[str]):

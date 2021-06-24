@@ -14,10 +14,11 @@ class BoardSolver:
             raise ValueError("Board is unsolvable")
         return goal_node.path
 
-    @staticmethod
-    def astar_search(initial_node: BoardNode) -> Optional[BoardNode]:
+    def astar_search(self, initial_node: BoardNode) -> Optional[BoardNode]:
         heap: List[BoardNode] = []
         seen = set()
+
+        current_max_depth = 0
 
         for neighbour in initial_node.neighbours:
             heapq.heappush(heap, neighbour)
@@ -25,6 +26,11 @@ class BoardSolver:
 
         while heap:
             node = heapq.heappop(heap)
+
+            # log the current depth to stdout
+            if node.depth > current_max_depth:
+                current_max_depth = node.depth
+                print(f"Current depth: {current_max_depth}")
 
             if node.is_goal():
                 return node
