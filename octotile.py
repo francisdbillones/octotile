@@ -6,8 +6,9 @@ import heapq
 
 
 class BoardSolver:
-    def __init__(self, initial_board: Board):
+    def __init__(self, initial_board: Board, log_depth=False):
         self.initial_node = BoardNode(initial_board)
+        self.log_depth = log_depth
 
     def solve(self) -> List[BoardNode]:
         goal_node = self.astar_search(self.initial_node)
@@ -33,7 +34,7 @@ class BoardSolver:
             node = heapq.heappop(heap)
 
             # log the current depth to stdout
-            if node.depth > current_max_depth:
+            if self.log_depth and node.depth > current_max_depth:
                 current_max_depth = node.depth
                 print(f"Current depth: {current_max_depth}")
 

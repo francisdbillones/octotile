@@ -1,9 +1,11 @@
 #! /usr/bin/python3
 
 import sys
+import time
 from typing import List
-from models import Board
+from models import Board, BoardNode
 from octotile import BoardSolver
+import random
 
 # map moves to English words
 MOVES_TO_WORDS = {
@@ -79,9 +81,43 @@ class BoardInputReader:
         return Board(board, height=height, width=width)
 
 
+def benchmark():
+    times = []
+    for _ in range(1_000):
+        board = random_board()
+        solver = BoardSolver(board, log_depth=False)
+
+        start = time.perf_counter_ns()
+        solver.solve()
+        end = time.perf_counter_ns()
+
+        times.append(end - start)
+
+    average_time = sum(times) / 1_000
+
+    print(f"Average time to solve board: {average_time}ns (" f"{average_time / 1e6}ms)")
+
+
+def random_board():
+    tiles = [1, 2, 3, 4, 5, 6, 7, 8, "_"]
+    initial_board = Board(tiles)
+    node = BoardNode(initial_board)
+
+    move_count = random.randrange(1, 30)
+
+    for _ in range(move_count):
+        random_action = random.choice(node.board.actions)
+        result_board = node.board.result_of(random_action)
+        node = BoardNode(result_board)
+    return node.board
+
+
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise Exception("Usage: ./run.py input.txt out.txt")
+    if len(sys.argv) == 1:
+        print("Benchmarking...")
+        benchmark()
+        sys.exit(0)
+
     if len(sys.argv) != 3:
         output_filename = "moves.txt"
     else:
