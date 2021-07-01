@@ -77,7 +77,7 @@ class Board:
             tiles_copy[new_blank_i * self.width + new_blank_j],
             tiles_copy[blank_i * self.width + blank_j],
         )
-        return Board(tiles_copy)
+        return Board(tiles_copy, height=self.height, width=self.width)
 
     def __hash__(self):
         return hash(tuple(self.tiles))

@@ -82,9 +82,13 @@ class BoardInputReader:
 
 
 def benchmark():
+    height = int(input("Board height: "))
+    width = int(input("Board width: "))
+    min_moves = int(input("Min moves: "))
+    max_moves = int(input("Max moves: "))
     times = []
     for _ in range(1_000):
-        board = random_board()
+        board = random_board(height, width, min_moves, max_moves)
         solver = BoardSolver(board, log_depth=False)
 
         start = time.perf_counter_ns()
@@ -98,17 +102,17 @@ def benchmark():
     print(f"Average time to solve board: {average_time}ns (" f"{average_time / 1e6}ms)")
 
 
-def random_board():
-    tiles = [1, 2, 3, 4, 5, 6, 7, 8, "_"]
-    initial_board = Board(tiles)
+def random_board(height, width, min_moves, max_moves):
+    tiles = [*range(1, height * width), "_"]
+    initial_board = Board(tiles, height=height, width=width)
     node = BoardNode(initial_board)
 
-    move_count = random.randrange(1, 30)
+    move_count = random.randrange(min_moves, max_moves + 1)
 
     for _ in range(move_count):
         random_action = random.choice(node.board.actions)
         result_board = node.board.result_of(random_action)
-        node = BoardNode(result_board)
+        node = BoardNode(result_board, action=random_action)
     return node.board
 
 
