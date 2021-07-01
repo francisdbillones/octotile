@@ -64,16 +64,19 @@ class BoardInputReader:
     def _to_board(lines: List[str]):
         board = []
 
+        height = len(lines)
+        width = len(lines[0].split(","))
+        print(height, width)
+
         for i, line in enumerate(lines):
-            board.append([])
             tiles = [tile.strip() for tile in line.split(",")]
 
             for j, tile in enumerate(tiles):
                 if tile == "_":
-                    board[i].append(tile)
+                    board.append(tile)
                 else:
-                    board[i].append(int(tile))
-        return Board(board)
+                    board.append(int(tile))
+        return Board(board, height=height, width=width)
 
 
 if __name__ == "__main__":

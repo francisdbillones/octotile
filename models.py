@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 from functools import cached_property
 from typing import List, Union, Tuple, Optional
 
@@ -8,48 +7,38 @@ Tile = Union[int, str]
 
 
 class Board:
-    def __init__(self, tiles: List[List[Tile]]):
-        self.tiles: List[List[Tile]] = []
-        self.blank = None
+    def __init__(self, tiles: List[Tile], height=3, width=3):
+        self.tiles = tiles
+        self.blank = tiles.index("_")
 
-        self.height = len(tiles)
-        self.width = len(tiles[0])
-
-        for i, row in enumerate(tiles):
-            self.tiles.append([])
-            for j, tile in enumerate(row):
-                if tile == "_":
-                    self.blank = i, j
-
-                self.tiles[i].append(tile)
+        self.height = height
+        self.width = width
 
     @cached_property
     def manhattan_distance(self) -> int:
         total_distance = 0
-        for i, row in enumerate(self.tiles):
-            for j, tile in enumerate(row):
-                total_distance += self.manhattan_distance_at(tile, i, j)
+        for i, tile in enumerate(self.tiles):
+            total_distance += self.manhattan_distance_at(tile, i)
         return total_distance
 
-    def manhattan_distance_at(self, value: Tile, i: int, j: int) -> int:
+    def manhattan_distance_at(self, value: Tile, i: int) -> int:
         """
-        Returns the manhattan distance of a cell at coordinates (i, j)
+        Returns the manhattan distance of a cell at index i
         given the value it holds.
         """
+        i_cor, j_cor = divmod(i, self.width)
         if value == "_":
             goal_i, goal_j = self.height - 1, self.width - 1
         else:
-            goal_i = (value - 1) // self.width
-            goal_j = (value - 1) % self.width
-
-        return abs(goal_i - i) + abs(goal_j - j)
+            goal_i, goal_j = divmod(value - 1, self.width)
+        return abs(goal_i - i_cor) + abs(goal_j - j_cor)
 
     def __repr__(self) -> str:
         return str(self.tiles)
 
     @cached_property
     def actions(self) -> List[Tuple[int, int]]:
-        blank_i, blank_j = self.blank
+        blank_i, blank_j = divmod(self.blank, self.width)
 
         # each element in each tuple represents a change in i and j
         # (-1, 0) -> i - 1, j, move blank tile up
@@ -73,22 +62,25 @@ class Board:
         Returns the result of performing a certain action as a new Board
         instance.
         """
-        blank_i, blank_j = self.blank
+        blank_i, blank_j = divmod(self.blank, self.width)
         delta_i, delta_j = action
 
         new_blank_i, new_blank_j = blank_i + delta_i, blank_j + delta_j
 
-        tiles_copy = copy.deepcopy(self.tiles)
+        tiles_copy = self.tiles.copy()
 
         # swap tiles
-        tiles_copy[blank_i][blank_j], tiles_copy[new_blank_i][new_blank_j] = (
-            tiles_copy[new_blank_i][new_blank_j],
-            tiles_copy[blank_i][blank_j],
+        (
+            tiles_copy[blank_i * self.width + blank_j],
+            tiles_copy[new_blank_i * self.width + new_blank_j],
+        ) = (
+            tiles_copy[new_blank_i * self.width + new_blank_j],
+            tiles_copy[blank_i * self.width + blank_j],
         )
         return Board(tiles_copy)
 
     def __hash__(self):
-        return hash(tuple(row) for row in self.tiles)
+        return hash(tuple(self.tiles))
 
 
 class BoardNode:
