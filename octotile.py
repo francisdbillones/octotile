@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+from math import inf
 
 from models import Board, BoardNode
 import heapq
@@ -40,10 +41,7 @@ class BoardSolver:
                 return node
 
             for neighbour in node.neighbours:
-                if (
-                    best_cost.get(neighbour) is None
-                    or neighbour.cost < best_cost[neighbour]
-                ):
+                if neighbour.cost < best_cost.get(neighbour, inf):
                     best_cost[neighbour] = neighbour.cost
                     heapq.heappush(heap, neighbour)
         return None
