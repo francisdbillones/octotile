@@ -1,63 +1,64 @@
 from __future__ import annotations
 
-from functools import cached_property
-from typing import List, Union, Tuple, Optional
+import numpy as np
 
-Tile = Union[int, str]
+from functools import cached_property
+from typing import Generator, List, Union, Tuple
+
+from helper import same_type_operation
+
+Action = Tuple[int, int]
+
+possible_moves = ((-1, 0), (1, 0), (0, -1), (0, 1))
+inverse_actions = {(0, 1): (0, -1), (0, -1): (0, 1), (1, 0): (-1, 0), (-1, 0): (1, 0)}
 
 
 class Board:
-    def __init__(self, tiles: List[Tile], height=3, width=3):
+    def __init__(self, tiles: np.ndarray, height=3, width=3, blank=None):
         self.tiles = tiles
-        self.blank = tiles.index("_")
+
+        self.blank = blank if blank is not None else tuple(tiles).index(0)
 
         self.height = height
         self.width = width
 
     @cached_property
     def manhattan_distance(self) -> int:
-        total_distance = 0
-        for i, tile in enumerate(self.tiles):
-            total_distance += self.manhattan_distance_at(tile, i)
-        return total_distance
-
-    def manhattan_distance_at(self, value: Tile, i: int) -> int:
-        """
-        Returns the manhattan distance of a cell at index i
-        given the value it holds.
-        """
+        i = np.arange(self.height * self.width)[self.tiles != 0]
         i_cor, j_cor = divmod(i, self.width)
-        if value == "_":
-            goal_i, goal_j = self.height - 1, self.width - 1
-        else:
-            goal_i, goal_j = divmod(value - 1, self.width)
-        return abs(goal_i - i_cor) + abs(goal_j - j_cor)
+        goal_i, goal_j = divmod(self.tiles[self.tiles != 0] - 1, self.width)
+
+        i_blank_cor, j_blank_cor = divmod(self.blank, self.width)
+
+        return (
+            np.sum(np.abs(goal_i - i_cor) + np.abs(goal_j - j_cor))
+            + abs(i_blank_cor - (self.height - 1))
+            + abs(j_blank_cor - (self.width - 1))
+        )
 
     def __repr__(self) -> str:
-        return str(self.tiles)
+        return f"{type(self).__name__}({self.tiles}, height={self.height}, width={self.width})"
 
-    @cached_property
-    def actions(self) -> List[Tuple[int, int]]:
+    @property
+    def actions(self) -> Generator[Action, None, None]:
         blank_i, blank_j = divmod(self.blank, self.width)
 
         # each element in each tuple represents a change in i and j
         # (-1, 0) -> i - 1, j, move blank tile up
         # (0, 1) -> i, j + 1, move blank tile right
-        possible_moves = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 
-        allowed_actions = []
         for move in possible_moves:
             delta_i, delta_j = move
 
             if not (0 <= blank_i + delta_i < self.height):
                 continue
+
             if not (0 <= blank_j + delta_j < self.width):
                 continue
 
-            allowed_actions.append((delta_i, delta_j))
-        return allowed_actions
+            yield delta_i, delta_j
 
-    def result_of(self, action: Tuple[int, int]) -> Board:
+    def result_of(self, action: Action) -> Board:
         """
         Returns the result of performing a certain action as a new Board
         instance.
@@ -77,19 +78,20 @@ class Board:
             tiles_copy[new_blank_i * self.width + new_blank_j],
             tiles_copy[blank_i * self.width + blank_j],
         )
-        return Board(tiles_copy, height=self.height, width=self.width)
+        return Board(
+            tiles_copy,
+            height=self.height,
+            width=self.width,
+            blank=new_blank_i * self.width + new_blank_j,
+        )
 
     def __hash__(self):
         return hash(tuple(self.tiles))
 
 
-class BoardNode:
+class ActionNode:
     def __init__(
-        self,
-        board: Board,
-        depth=0,
-        action: Optional[Tuple[int, int]] = None,
-        parent: Optional[BoardNode] = None,
+        self, board: Board, depth=0, action: Action = None, parent: ActionNode = None
     ):
         self.board = board
         self.depth = depth
@@ -98,84 +100,55 @@ class BoardNode:
 
         self.cost = self.depth + self.board.manhattan_distance
 
-    @cached_property
-    def neighbours(self) -> List[BoardNode]:
-        _neighbours = []
+    @property
+    def neighbours(self) -> Generator[ActionNode, None, None]:
         for action in self.board.actions:
             # if action is the inverse of this node's action, disregard the
             # action
-            if self._is_inverse_action(action):
+            if self.action is not None and inverse_actions[self.action] == action:
                 continue
-            resulting_board = self.board.result_of(action)
-            resulting_board_node = BoardNode(
-                resulting_board, self.depth + 1, action, self
+
+            neighbor = ActionNode(
+                self.board.result_of(action),
+                depth=self.depth + 1,
+                action=action,
+                parent=self,
             )
-            _neighbours.append(resulting_board_node)
-        return _neighbours
+            yield neighbor
 
-    def _is_inverse_action(self, action: Tuple[int, int]) -> bool:
-        # if this node is the initial node, just return false as all actions
-        # are allowed
-        if self.action is None:
-            return False
-
-        other_delta_i, other_delta_j = action
-        this_delta_i, this_delta_j = self.action
-
-        if this_delta_i != 0 and this_delta_i == -other_delta_i:
-            return True
-        elif this_delta_j != 0 and this_delta_j == -other_delta_j:
-            return True
-        return False
-
-    @cached_property
-    def path(self) -> List[BoardNode]:
+    @property
+    def path(self) -> Generator[ActionNode, None, None]:
         """
-        Returns a list of the path of BoardNodes that this instance took, in
+        Returns a list of the path of ActionNodes that this instance took, in
         chronological order.
         """
-        if self.parent is None:
-            return [self]
-        return self.parent.path + [self]
+        if self.parent is not None:
+            yield from self.parent.path
+        yield self
 
+    @property
     def is_goal(self) -> bool:
         return self.board.manhattan_distance == 0
 
-    def __lt__(self, other: BoardNode) -> bool:
-        if not isinstance(other, BoardNode):
-            raise TypeError(
-                f"< not supported between instances of "
-                f"'BoardNode' and {type(other).__name__}"
-            )
+    @same_type_operation("<")
+    def __lt__(self, other: ActionNode) -> bool:
         return self.cost < other.cost
 
-    def __le__(self, other: BoardNode) -> bool:
-        if not isinstance(other, BoardNode):
-            raise TypeError(
-                f"<= not supported between instances of "
-                f"'BoardNode' and {type(other).__name__}"
-            )
+    @same_type_operation("<=")
+    def __le__(self, other: ActionNode) -> bool:
         return self.cost <= other.cost
 
-    def __gt__(self, other: BoardNode) -> bool:
-        if not isinstance(other, BoardNode):
-            raise TypeError(
-                f"> not supported between instances of "
-                f"'BoardNode' and {type(other).__name__}"
-            )
+    @same_type_operation(">")
+    def __gt__(self, other: ActionNode) -> bool:
         return self.cost > other.cost
 
-    def __ge__(self, other: BoardNode) -> bool:
-        if not isinstance(other, BoardNode):
-            raise TypeError(
-                f">= not supported between instances of "
-                f"'BoardNode' and {type(other).__name__}"
-            )
+    @same_type_operation(">=")
+    def __ge__(self, other: ActionNode) -> bool:
         return self.cost >= other.cost
 
     def __repr__(self) -> str:
         return (
-            f"BoardNode({self.board}, cost={self.cost}, depth"
+            f"{type(self).__name__}({self.board}, depth"
             f"={self.depth}, action="
             f"{self.action})"
         )

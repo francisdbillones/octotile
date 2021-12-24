@@ -1,11 +1,16 @@
-#! /usr/bin/python3
+#! /usr/bin/env python3
+
+from __future__ import annotations
+
+import numpy as np
 
 import sys
 import time
-from typing import List
-from models import Board, BoardNode
-from octotile import BoardSolver
+from models import Board, ActionNode
+from solver import solve_board
 import random
+
+from read_input import read_board_from_file
 
 # map moves to English words
 MOVES_TO_WORDS = {
@@ -16,103 +21,43 @@ MOVES_TO_WORDS = {
 }
 
 
-class BoardInputReader:
-    """
-    Parse user input into a Board instance.
-    """
-
-    def __init__(self):
-        return
-
-    def __call__(self, in_filename):
-        with open(in_filename, "r") as reader:
-            lines = reader.readlines()
-
-        BoardInputReader._validate(lines)
-        return BoardInputReader._to_board(lines)
-
-    @staticmethod
-    def _validate(lines: List[str]):
-        if not lines:
-            raise ValueError("File empty")
-        seen = set()
-        has_blank = False
-
-        height = len(lines)
-        width = len(lines[0].split(","))
-
-        expected_nums = set(range(1, height * width))
-
-        for i, line in enumerate(lines):
-            tiles = [tile.strip() for tile in line.split(",")]
-            for j, tile in enumerate(tiles):
-                if tile == "_":
-                    if has_blank:
-                        raise ValueError(
-                            "Too many blank tiles in input. Only one is allowed."
-                        )
-                    has_blank = True
-                    continue
-                elif not tile.isnumeric():
-                    raise ValueError("Non-blank tiles must be integers.")
-                elif tile in seen:
-                    raise ValueError("Duplicate tiles")
-                seen.add(int(tile))
-
-        if seen != expected_nums:
-            raise ValueError("Incomplete/invalid tile values")
-
-    @staticmethod
-    def _to_board(lines: List[str]):
-        board = []
-
-        height = len(lines)
-        width = len(lines[0].split(","))
-        print(height, width)
-
-        for i, line in enumerate(lines):
-            tiles = [tile.strip() for tile in line.split(",")]
-
-            for j, tile in enumerate(tiles):
-                if tile == "_":
-                    board.append(tile)
-                else:
-                    board.append(int(tile))
-        return Board(board, height=height, width=width)
-
-
 def benchmark():
     height = int(input("Board height: "))
     width = int(input("Board width: "))
     min_moves = int(input("Min moves: "))
     max_moves = int(input("Max moves: "))
-    times = []
-    for _ in range(1_000):
+
+    start = time.perf_counter_ns()
+
+    count = 0
+
+    while True:
         board = random_board(height, width, min_moves, max_moves)
-        solver = BoardSolver(board, log_depth=False)
+        path = solve_board(board, log_depth=False)
+        count += 1
+        if (time.perf_counter_ns() - start) > 10e9:
+            break
 
-        start = time.perf_counter_ns()
-        solver.solve()
-        end = time.perf_counter_ns()
+    end = time.perf_counter_ns()
 
-        times.append(end - start)
-
-    average_time = sum(times) / 1_000
-
-    print(f"Average time to solve board: {average_time}ns (" f"{average_time / 1e6}ms)")
+    print(f"Solved {count} boards")
+    print(
+        f"Average time to solve board: {(end - start) / count}ns ("
+        f"{(end - start) / 1e6 / count}ms)"
+    )
 
 
-def random_board(height, width, min_moves, max_moves):
-    tiles = [*range(1, height * width), "_"]
-    initial_board = Board(tiles, height=height, width=width)
-    node = BoardNode(initial_board)
+def random_board(height: int, width: int, min_moves: int, max_moves: int):
+    tiles = np.array([*range(1, height * width), 0])
+    board = Board(tiles, height=height, width=width)
+    node = ActionNode(board)
 
-    move_count = random.randrange(min_moves, max_moves + 1)
+    move_count = random.randint(min_moves, max_moves)
 
     for _ in range(move_count):
-        random_action = random.choice(node.board.actions)
+        random_action = random.choice(tuple(node.board.actions))
         result_board = node.board.result_of(random_action)
-        node = BoardNode(result_board, action=random_action)
+        node = ActionNode(result_board, action=random_action)
     return node.board
 
 
@@ -128,12 +73,9 @@ if __name__ == "__main__":
         output_filename = sys.argv[2]
     input_filename = sys.argv[1]
 
-    input_reader = BoardInputReader()
-    board = input_reader(input_filename)
+    board = read_board_from_file(input_filename)
 
-    solver = BoardSolver(board)
-
-    path = solver.solve()
+    path = solve_board(board, log_depth=True)
 
     with open(output_filename, "w") as writer:
         print("writing")
