@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from functools import cached_property
-from typing import Generator, List, Union, Tuple
+from typing import Generator, Tuple
 
 from helper import same_type_operation
 
@@ -22,7 +21,7 @@ class Board:
         self.height = height
         self.width = width
 
-    @cached_property
+    @property
     def manhattan_distance(self) -> int:
         i = np.arange(self.height * self.width)[self.tiles != 0]
         i_cor, j_cor = divmod(i, self.width)
